@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - '8000:8000'
+    environment:
+      - DATABASE_URL=postgresql://ghost:ghost@db:5432/ghostprotocol
+      - REDIS_URL=redis://redis:6379/0
+      - OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID}
+      - OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET}
+      - OAUTH_MICROSOFT_CLIENT_ID=${OAUTH_MICROSOFT_CLIENT_ID}
+      - OAUTH_MICROSOFT_CLIENT_SECRET=${OAUTH_MICROSOFT_CLIENT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: ./backend
+    command: celery -A app.celery_app.celery_app worker --loglevel=INFO
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  frontend:
+    build: ./frontend
+    ports:
+      - '5173:5173'
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=ghost
+      - POSTGRES_PASSWORD=ghost
+      - POSTGRES_DB=ghostprotocol
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
+volumes:
+  db_data:
